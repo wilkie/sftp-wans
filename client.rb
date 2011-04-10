@@ -2,57 +2,144 @@ require_relative 'server'
 
 module SFTP
   class Client
-    def initialize(host, port = SFTP::Server::DEFAULT_PORT)
-      @socket = TCPSocket.new(host, port)
+    def initialize (host = nil, port = SFTP::Server::DEFAULT_PORT)
+      unless host.nil?
+        command_open host, port
+      end
     end
 
-    def send
-      @socket.puts "hello"
+    def command_open host, port = SFTP::Server::DEFAULT_PORT, data_port = nil
+      unless @socket.nil?
+        command_close
+      end
+      begin
+        @socket = TCPSocket.new(host, port)
+      rescue
+      end
+      if @socket.nil? or @socket.closed?
+        "Connection Failed"
+      else
+        data_response = ""
+        if not data_port.nil?
+          data_listener = TCPServer.new(host, data_port)
+
+          @socket.puts "OPEN #{data_port}"
+          select([data_listener])
+          @data_socket = data_listener.accept
+          data_response = "Data Connection Made\n"
+          data_listener.close
+          response = @socket.readline
+        else
+          @socket.puts "OPEN"
+          response = @socket.readline
+          data_port = response[/^OK (.*)$/,1].to_i
+          @data_socket = TCPSocket.new host, data_port
+        end
+        @data_connection = DataConnection.new :socket=>@data_socket
+
+        "#{data_response}Connection Made: #{response}"
+      end
+    end
+
+    def command_close
+      unless @socket.nil?
+        @socket.close
+        @socket = nil
+        @data_socket.close
+        @data_socket = nil
+        "Connection Closed"
+      else
+        "Connection Not Open"
+      end
+    end
+
+    def closed?
+      @socket.nil? or @socket.closed?
     end
 
     def command_pwd
-       @socket.puts "PWD"
-       @socket.readline
+      return "Connection Not Open" if closed?
+      @socket.puts "PWD"
+      @socket.readline
     end
 
     def command_rcd path
+      return "Connection Not Open" if closed?
       @socket.puts "RCD #{path}"
       @socket.readline
     end
 
     def command_rls
+      return "Connection Not Open" if closed?
       @socket.puts "RLS"
       # Wait for data to be sent
     end
 
     def command_get filename
+      return "Connection Not Open" if closed?
       @socket.puts "GET #{filename}"
-      # Wait for data to be sent
+      # Get filesize
+      response = @socket.readline
+      if response.match /^OK/
+        filesize = response[/OK (.*)$/,1].to_i
+        # Wait for data to be sent
+        @data_connection.receive(filename, filesize)
+      end
+
+      response
     end
 
     def command_mget filenames
+      return "Connection Not Open" if closed?
       @socket.puts "MGET #{files.inject(""){|l,e| l = "#{l}#{e} "}}"
       # Wait for data to be sent
     end
 
     def command_put filename
-      # XXX: Get filesize
-      filesize = 0
-      @socket.puts "PUT #{filename} #{filesize}"
+      return "Connection Not Open" if closed?
+      filename = Server.absolute_path(Dir.getwd, filename)
+      file = File.new(filename)
+      @socket.puts "PUT #{filename} #{file.size}"
+      response = @socket.readline
     end
 
     def command_mput filenames
+      return "Connection Not Open" if closed?
       @socket.puts "MGET #{files.inject(""){|l,e| l = "#{l}#{e} "}}"
       # Wait for data to be sent
     end
 
     def command_lcd path
-      # XXX: handle error
-      Dir.chdir path
+      new_path = path
+
+      # construct absolute path
+
+      unless new_path.start_with?("/")
+        new_path = Dir.getwd
+        unless new_path.end_with?("/")
+          new_path += "/"
+        end
+        new_path += path
+      end
+
+      new_path = SFTP::Server.sanitize new_path
+
+      if Dir.exists?(new_path)
+        Dir.chdir new_path
+        "Changed directory to #{new_path}"
+      else
+        "Directory Not Found"
+      end
     end
 
     def command_lls
       # Return list
+      list = Dir.new(Dir.getwd).each.map do |entry|
+        entry
+      end
+      list.delete "."
+      list.delete ".."
+      list
     end
   end
 end

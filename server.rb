@@ -1,4 +1,5 @@
 require 'socket'
+require_relative 'data_connection'
 
 module SFTP
   class Server
@@ -7,12 +8,15 @@ module SFTP
     def initialize(port = DEFAULT_PORT)
       @clients = []
       @directories = []
+      @data_sockets = []
+      @data_connections = []
       @listener = TCPServer.new('127.0.0.1', port)
+      @data_listener = TCPServer.new('127.0.0.1', SFTP::DataConnection::DEFAULT_PORT)
     end
 
     def run
       while true do
-        selected = select([@listener] + @clients).first
+        selected = select([@listener, @data_listener] + @clients + @data_sockets).first
         next if selected.nil?
 
         selected.each do |socket|
@@ -22,12 +26,21 @@ module SFTP
             client = @listener.accept
             @clients << client
             @directories << Dir.new(Dir.pwd)
-          else
+          elsif socket == @data_listener
+            puts "New data connection #{@data_connections.count}"
+            @data_socket = @data_listener.accept
+            @data_sockets << @data_socket
+            @data_connections << DataConnection.new(:socket => @data_socket)
+          elsif @clients.include? socket
             # The socket is a client
 
             @index = @clients.index socket
             @client = socket
             @directory = @directories[@index]
+            if @data_connections.count > @index
+              @data_connection = @data_connections[@index]
+              @data_socket = @data_sockets[@index]
+            end
 
             begin
               if socket.closed? || socket.eof?
@@ -39,12 +52,27 @@ module SFTP
                 puts "Client #{@index} command"
                 interpret_command socket.readline
               end
-            rescue
+            #rescue
               # Just close the socket
-              puts "Client #{@index} closed"
-              @clients.delete_at @index
-              @directories.delete_at @index
+             # puts "Client #{@index} closed"
+             # @clients.delete_at @index
+             # @directories.delete_at @index
+             # socket.close
+            end
+          elsif @data_sockets.include? socket
+            # data connection
+            @index = @data_sockets.index socket
+            @client = @clients[@index]
+            @directory = @directories[@index]
+            @data_socket = @data_sockets[@index]
+            @data_connect = @data_connections[@index]
+
+            if socket.closed? || socket.eof?
+              puts "Data Connection #{@index} closed"
+              @data_connections.delete_at @index
+              @data_sockets.delete_at @index
               socket.close
+            else
             end
           end
         end
@@ -75,12 +103,19 @@ module SFTP
 
     # Commands
 
-    # SFTP
-    def command_sftp
-    end
-
     # OPEN
-    def command_open
+    def command_open port = nil
+      # negotiate for a data connection
+      # if port is nil, the server waits for a data connection from this client
+      if port.nil?
+        @client.puts "OK #{SFTP::DataConnection::DEFAULT_PORT}"
+      else
+        remote_host = @client.peeraddr(false).last
+        @data_socket = TCPSocket.new(remote_host, port)
+        @data_connections << DataConnection.new(:socket => @data_socket)
+        @data_sockets << @data_socket
+        @client.puts "OK"
+      end
     end
 
     # PWD
@@ -94,15 +129,38 @@ module SFTP
     # RCD path
     # Responds: path exists: OK
     #           path doesn't exist: FAILURE
-    def command_rcd path
+    def Server.sanitize path
+      # remove . and ..
+
+      while path.gsub! /\/\.(\/|$)/, "/"
+      end
+
+      while path.gsub! /(\/[^\/]*?|^)\/..(\/|$)/, "/"
+      end
+
+      if path != "/" and path[-1] == "/"
+        path = path[0..-2]
+      end
+
+      path
+    end
+
+    def Server.absolute_path root_path, path
       new_path = path
       unless new_path.start_with?("/")
-        new_path = @directory.path
-        unless @directory.path.end_with?("/")
+        new_path = root_path
+        unless new_path.end_with?("/")
           new_path += "/"
         end
         new_path += path
       end
+
+      new_path = Server.sanitize new_path
+    end
+
+    def command_rcd path
+      # construct absolute path
+      new_path = Server.absolute_path(@directory.path, path)
 
       puts "Change directory to #{new_path}"
       if Dir.exists?(new_path)
@@ -116,13 +174,29 @@ module SFTP
     # PUT filename filesize
     # Knows it will be retrieving the file over data connection
     def command_put filename, filesize
+      filename = Server.absolute_path(@directory.path, filename)
+      puts "Receiving #{filename}"
+
+      @client.puts "OK"
+
+      @data_connection.receive filename, filesize
     end
 
     # GET filename
     # Responds: OK filesize
     def command_get filename
+      # construct absolute path
+      filename = Server.absolute_path(@directory.path, filename)
+
       # Respond with "OK #{filesize}"
       # Start sending file over data connection
+      if File.exists? filename and not File.directory? filename
+        f = File.new(filename)
+        @client.puts "OK #{f.size}"
+        @data_connection.transfer f
+      else
+        @client.puts "FAILURE: File Not Found"
+      end
     end
 
     # MPUT filename filesize [filename filesize]*
