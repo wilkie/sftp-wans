@@ -67,12 +67,17 @@ module SFTP
             @data_socket = @data_sockets[@index]
             @data_connect = @data_connections[@index]
 
-            if socket.closed? || socket.eof?
-              puts "Data Connection #{@index} closed"
-              @data_connections.delete_at @index
-              @data_sockets.delete_at @index
-              socket.close
-            else
+            begin
+              if socket.closed? || socket.eof?
+                puts "Data Connection #{@index} closed"
+                @data_connections.delete_at @index
+                @data_sockets.delete_at @index
+                socket.close
+              else
+                puts "Data connection receiving..."
+                @data_connect.ping
+              end
+            #rescue
             end
           end
         end
@@ -179,7 +184,7 @@ module SFTP
 
       @client.puts "OK"
 
-      @data_connection.receive filename, filesize
+      @data_connection.receive filename, filesize.to_i
     end
 
     # GET filename

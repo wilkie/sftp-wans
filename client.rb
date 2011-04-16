@@ -97,10 +97,22 @@ module SFTP
 
     def command_put filename
       return "Connection Not Open" if closed?
-      filename = Server.absolute_path(Dir.getwd, filename)
-      file = File.new(filename)
+      local_filename = Server.absolute_path(Dir.getwd, filename)
+      file = File.new(local_filename)
       @socket.puts "PUT #{filename} #{file.size}"
       response = @socket.readline
+
+      @data_connection.transfer(file)
+
+      while not @data_connection.done? do
+        socket = select([@data_socket]).first.first
+
+        if socket == @data_socket
+          @data_connection.ping
+        end
+      end
+      
+      "Transfer complete."
     end
 
     def command_mput filenames
