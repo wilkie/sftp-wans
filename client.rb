@@ -72,7 +72,29 @@ module SFTP
     def command_rls
       return "Connection Not Open" if closed?
       @socket.puts "RLS"
+
       # Wait for data to be sent
+      # Get filesize
+      response = @socket.readline
+      if response.match /^OK/
+        filesize = response[/OK (.*)$/,1].to_i
+        @data_connection.receive(nil, filesize)
+      end
+
+      while not @data_connection.done? do
+        socket = select([@data_socket], nil, nil, 0)
+        unless socket.nil?
+          socket = socket.first.first
+        end
+
+        if socket == @data_socket
+          @data_connection.ping
+        else
+          @data_connection.idle
+        end
+      end
+
+      @data_connection.contents
     end
 
     def command_get filename
@@ -98,17 +120,22 @@ module SFTP
     def command_put filename
       return "Connection Not Open" if closed?
       local_filename = Server.absolute_path(Dir.getwd, filename)
-      file = File.new(local_filename)
+      file = File.new(local_filename, "rb")
       @socket.puts "PUT #{filename} #{file.size}"
       response = @socket.readline
 
       @data_connection.transfer(file)
 
       while not @data_connection.done? do
-        socket = select([@data_socket]).first.first
+        socket = select([@data_socket], nil, nil, 0)
+        unless socket.nil?
+          socket = socket.first.first
+        end
 
         if socket == @data_socket
           @data_connection.ping
+        else
+          @data_connection.idle
         end
       end
       

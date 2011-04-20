@@ -3,6 +3,8 @@ require_relative 'data_connection'
 
 module SFTP
   class Server
+    require 'stringio'
+
     DEFAULT_PORT = 8080
 
     def initialize(port = DEFAULT_PORT)
@@ -16,7 +18,22 @@ module SFTP
 
     def run
       while true do
-        selected = select([@listener, @data_listener] + @clients + @data_sockets).first
+        selected = select([@listener, @data_listener] + @clients + @data_sockets, nil, nil, 0)
+        if selected.nil?
+          # idle
+          @data_sockets.each do |socket|
+            @index = @data_sockets.index socket
+            @data_socket = @data_sockets[@index]
+            @data_connect = @data_connections[@index]
+
+            @data_connect.idle
+          end
+
+          next
+        else
+          selected = selected.first
+        end
+
         next if selected.nil?
 
         selected.each do |socket|
@@ -217,6 +234,17 @@ module SFTP
     # RLS
     # Will send a newline delimited list over data connection
     def command_rls
+      s = StringIO.new ""
+      list = Dir.new(@directory).each do |entry|
+        unless entry == "."
+          s.puts entry
+        end
+      end
+
+      @client.puts "OK #{s.size}"
+
+      s.seek 0
+      @data_connection.transfer s
     end
   end
 end
