@@ -108,6 +108,19 @@ module SFTP
         @data_connection.receive(filename, filesize)
       end
 
+      while not @data_connection.done? do
+        socket = select([@data_socket], nil, nil, 0)
+        unless socket.nil?
+          socket = socket.first.first
+        end
+
+        if socket == @data_socket
+          @data_connection.ping
+        else
+          @data_connection.idle
+        end
+      end
+
       response
     end
 
