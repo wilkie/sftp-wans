@@ -1,16 +1,21 @@
 require_relative 'client'
+require 'yaml'
 
 module SFTP
   class CLI
     
     class << self
-      def run
-        @client = SFTP::Client.new
+      def run config_file = nil
+        config = nil
+        if config_file
+          config = YAML::load_file(config_file)
+        end
+        @client = SFTP::Client.new config
 
         command = ""
         until command.downcase == "quit"
           print "> "
-          command = readline.strip
+          command = $stdin.readline.strip
           interpret_command command
         end
       end

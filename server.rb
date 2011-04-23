@@ -7,7 +7,8 @@ module SFTP
 
     DEFAULT_PORT = 8080
 
-    def initialize(port = DEFAULT_PORT)
+    def initialize(config = nil, port = DEFAULT_PORT)
+      @config = config
       @clients = []
       @directories = []
       @data_sockets = []
@@ -47,7 +48,7 @@ module SFTP
             puts "New data connection #{@data_connections.count}"
             @data_socket = @data_listener.accept
             @data_sockets << @data_socket
-            @data_connections << DataConnection.new(:socket => @data_socket)
+            @data_connections << DataConnection.new({:socket => @data_socket}.merge(@config))
           elsif @clients.include? socket
             # The socket is a client
 
@@ -134,7 +135,7 @@ module SFTP
       else
         remote_host = @client.peeraddr(false).last
         @data_socket = TCPSocket.new(remote_host, port)
-        @data_connections << DataConnection.new(:socket => @data_socket)
+        @data_connections << DataConnection.new({:socket => @data_socket}.merge(@config))
         @data_sockets << @data_socket
         @client.puts "OK"
       end
