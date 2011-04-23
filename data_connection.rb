@@ -16,6 +16,10 @@ module SFTP
     DEFAULT_ERROR_RATE = 0.4
 
     def initialize options
+      # stats
+      @corrupted = 0
+      @dropped = 0
+
       if options[:host]
         port = options[:port]
         port = DEFAULT_PORT if port.nil?
@@ -321,6 +325,7 @@ module SFTP
     def send_frame sequence_number
       puts "Sending frame #{sequence_number}"
       if rand(100) < @drop_rate
+        @dropped += 1
         puts "Dropped frame"
         return
       end
@@ -330,6 +335,7 @@ module SFTP
 
       to_send = String.new(@buffer[sequence_number])
       if rand(100) < @error_rate
+        @corrupted += 1
         puts to_send.length
         puts to_send.getbyte(0)
         to_send.setbyte(0, to_send.getbyte(0) ^ 255)
