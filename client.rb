@@ -2,7 +2,12 @@ require_relative 'server'
 
 module SFTP
   class Client
-    def initialize (host = nil, port = SFTP::Server::DEFAULT_PORT)
+    def initialize (config = nil, host = nil, port = SFTP::Server::DEFAULT_PORT)
+      @config = config
+      if config
+        @nameserver = config["nameserver"]
+        puts @nameserver
+      end
       unless host.nil?
         command_open host, port
       end
@@ -35,7 +40,7 @@ module SFTP
           data_port = response[/^OK (.*)$/,1].to_i
           @data_socket = TCPSocket.new host, data_port
         end
-        @data_connection = DataConnection.new :socket=>@data_socket
+        @data_connection = DataConnection.new({:socket=>@data_socket}.merge(@config))
 
         "#{data_response}Connection Made: #{response}"
       end

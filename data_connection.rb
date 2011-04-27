@@ -16,6 +16,10 @@ module SFTP
     DEFAULT_ERROR_RATE = 0.4
 
     def initialize options
+      # stats
+      @corrupted = 0
+      @dropped = 0
+
       if options[:host]
         port = options[:port]
         port = DEFAULT_PORT if port.nil?
@@ -24,15 +28,15 @@ module SFTP
         @socket = options[:socket]
       end
 
-      @window_size = options[:window_size] || DEFAULT_WINDOW_SIZE
-      @frame_size = options[:frame_size] || DEFAULT_FRAME_SIZE
-      @implementation = options[:algorithm] || DEFAULT_IMPLEMENTATION
-      @timeout = options[:timeout] || DEFAULT_TIMEOUT
+      @window_size = options[:window_size] || options["window size"] || DEFAULT_WINDOW_SIZE
+      @frame_size = options[:frame_size] || options["frame size"] || DEFAULT_FRAME_SIZE
+      @implementation = options[:implementation] || options["implementation"] || DEFAULT_IMPLEMENTATION
+      @timeout = options[:timeout] || options["timeout"] || DEFAULT_TIMEOUT
 
-      @error_rate = options[:error_rate] || DEFAULT_ERROR_RATE
+      @error_rate = options[:error_rate] || options["error rate"] || DEFAULT_ERROR_RATE
       @error_rate *= 100
 
-      @drop_rate = options[:drop_rate] || DEFAULT_DROP_RATE
+      @drop_rate = options[:drop_rate] || options["drop rate"] || DEFAULT_DROP_RATE
       @drop_rate *= 100
     end
 
@@ -85,6 +89,13 @@ module SFTP
     end
 
     def timeout
+      if @type == :receiving
+        # Timeout expecting a frame
+        puts "Timeout on #{@current_frame}"
+        nacknowledge_frame @current_frame
+      else
+        # Timeout expecting an ack
+      end
     end
 
     def reset_timeout
@@ -313,11 +324,18 @@ module SFTP
 
     def send_frame sequence_number
       puts "Sending frame #{sequence_number}"
+      if rand(100) < @drop_rate
+        @dropped += 1
+        puts "Dropped frame"
+        return
+      end
+
       # send from buffer
       @socket.puts "#{sequence_number} #{checksum sequence_number}"
 
       to_send = String.new(@buffer[sequence_number])
       if rand(100) < @error_rate
+        @corrupted += 1
         puts to_send.length
         puts to_send.getbyte(0)
         to_send.setbyte(0, to_send.getbyte(0) ^ 255)
