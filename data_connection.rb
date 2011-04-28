@@ -143,7 +143,6 @@ module SFTP
       unless @expire_time.nil?
         elapsed = Time.now - @expire_time
         if elapsed >= @options[:timeout]
-          puts "Timeout"
           timeout
         end
       end
@@ -332,12 +331,6 @@ module SFTP
 
     def receive_frame sequence_number
       @stats[:frames_received] += 1
-      if not @buffer[sequence_number].nil?
-        # Already have this frame
-        puts "Redundant frame #{sequence_number}"
-        @stats[:redundant_frames] += 1
-        return false
-      end
 
       # Read in the frame
       to_read = @options[:frame_size]
@@ -346,8 +339,16 @@ module SFTP
         to_read = @options[:frame_size] if to_read == 0
       end
 
+      buffer = @socket.read(to_read)
+      if not @buffer[sequence_number].nil?
+        # Already have this frame
+        puts "Redundant frame #{sequence_number}"
+        @stats[:redundant_frames] += 1
+        return false
+      end
+
       puts "Reading frame #{sequence_number} (#{to_read} bytes)"
-      @buffer[sequence_number] = @socket.read(to_read)
+      @buffer[sequence_number] = buffer
 
       reset_timeout
 
