@@ -104,6 +104,7 @@ module SFTP
 
     def command_get filename
       return "Connection Not Open" if closed?
+
       @socket.puts "GET #{filename}"
       # Get filesize
       response = @socket.readline
@@ -129,10 +130,15 @@ module SFTP
       response
     end
 
-    def command_mget filenames
+    def command_mget *filenames
       return "Connection Not Open" if closed?
-      @socket.puts "MGET #{files.inject(""){|l,e| l = "#{l}#{e} "}}"
-      # Wait for data to be sent
+
+      filenames.each do |f|
+        command_get f
+        # Wait for data to be sent
+      end
+
+      "Transfer complete."
     end
 
     def command_put filename
