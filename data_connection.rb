@@ -168,6 +168,9 @@ module SFTP
       @window = 0
       @current_frame = 0
       @buffer = Array.new(@window_size * 2) { nil }
+
+      reset_timeout
+
       receive_window
     end
 
@@ -187,6 +190,9 @@ module SFTP
       @current_frame = 0
 
       @buffer = Array.new(@window_size * 2) { nil }
+
+      reset_timeout
+
       send_window
     end
 
