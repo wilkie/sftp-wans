@@ -1,0 +1,12 @@
+error_rate: 0.9
+drop_rate: 0.2
+
+window_size: 40
+frame_size: 40
+
+nameserver: 127.0.0.1:8089
+
+timeout: 0.5
+
+implementation: select_repeat
+#implementation: go_back
