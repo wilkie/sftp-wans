@@ -3,6 +3,7 @@ require 'yaml'
 
 module SFTP
   class CLI
+    EXIT_COMMANDS = ["quit", "exit", "bye"]
     
     class << self
       def run config_file = nil
@@ -13,10 +14,10 @@ module SFTP
         @client = SFTP::Client.new config
 
         command = ""
-        until command.downcase == "quit"
+        until EXIT_COMMANDS.include? command.downcase
           print "> "
           command = $stdin.readline.strip
-          interpret_command command
+          interpret_command command unless command.empty?
         end
       end
 
@@ -36,7 +37,7 @@ module SFTP
         if @client.respond_to? function
           puts @client.send(:"command_#{command_str}", *command_args)
         else
-          unless command_str.downcase == "quit"
+          unless EXIT_COMMANDS.include? command_str.downcase 
             puts "Command #{command_str} not known"
           end
         end

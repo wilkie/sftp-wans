@@ -248,5 +248,14 @@ module SFTP
       s.seek 0
       @data_connection.transfer s
     end
+    
+    # CONFIG
+    # Set config vars
+    def command_config var, val
+      @config[var.intern] = val
+      @data_connections.each do |data_connection|
+        data_connection.set_options @config
+      end
+    end
   end
 end

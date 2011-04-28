@@ -198,5 +198,16 @@ module SFTP
       list.delete ".."
       list
     end
+    
+    def command_config var, val
+      # Set @config[:var]=val
+      @config[var.intern] = val
+      # if already open then pass to server
+      if !closed?
+        @socket.puts "CONFIG #{var} #{val}"
+      end 
+      @data_connection.set_options @options
+    end
+    
   end
 end
