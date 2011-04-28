@@ -1,0 +1,16 @@
+open 127.1 8085
+
+
+config error_rate 0.1
+config drop_rate 0.1
+config timeout 0.5
+put m
+stat
+
+
+
+close
+
+
+stat
+quit
