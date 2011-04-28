@@ -35,7 +35,11 @@ module SFTP
         # call the associated command_* method
         function = :"command_#{command_str}"
         if @client.respond_to? function
-          puts @client.send(:"command_#{command_str}", *command_args)
+          begin
+            puts @client.send(:"command_#{command_str}", *command_args)
+          rescue ArgumentError => e
+            puts "Command #{command_str} has wrong number of arguments"
+          end
         else
           unless EXIT_COMMANDS.include? command_str.downcase 
             puts "Command #{command_str} not known"

@@ -5,6 +5,8 @@ module SFTP
     require 'digest/md5'
     require 'stringio'
 
+    attr_accessor :stats
+
     DEFAULT_PORT = 8081
 
     DEFAULT_WINDOW_SIZE = 16
@@ -17,8 +19,15 @@ module SFTP
 
     def initialize options
       # stats
-      @corrupted = 0
-      @dropped = 0
+
+      @stats = {}
+
+      @stats[:corrupted] = 0
+      @stats[:dropped] = 0
+      @stats[:frames_sent] = 0
+      @stats[:redundant_frames] = 0
+      @stats[:frames_received] = 0
+      @stats[:timeouts] = 0
 
       if options[:host]
         port = options[:port]
@@ -106,6 +115,7 @@ module SFTP
     end
 
     def timeout
+      @stats[:timeouts] += 1
       if @type == :receiving
         # Timeout expecting a frame
         puts "Timeout on #{@current_frame}"
@@ -317,9 +327,11 @@ module SFTP
     end
 
     def receive_frame sequence_number
+      @stats[:frames_received] += 1
       if not @buffer[sequence_number].nil?
         # Already have this frame
         puts "Redundant frame #{sequence_number}"
+        @stats[:redundant_frames] += 1
         return false
       end
 
@@ -351,8 +363,10 @@ module SFTP
 
     def send_frame sequence_number
       puts "Sending frame #{sequence_number}"
+      @stats[:frames_sent] += 1
+
       if rand(100) < @options[:drop_rate]
-        @dropped += 1
+        @stats[:dropped] += 1
         puts "Dropped frame"
         return
       end
@@ -362,7 +376,7 @@ module SFTP
 
       to_send = String.new(@buffer[sequence_number])
       if rand(100) < @options[:error_rate]
-        @corrupted += 1
+        @stats[:corrupted] += 1
         puts to_send.length
         puts to_send.getbyte(0)
         to_send.setbyte(0, to_send.getbyte(0) ^ 255)
