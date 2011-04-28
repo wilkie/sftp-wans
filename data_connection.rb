@@ -5,6 +5,7 @@ module SFTP
     require 'digest/md5'
     require 'stringio'
 
+    attr_accessor :options
     attr_accessor :stats
 
     DEFAULT_PORT = 8081
@@ -60,11 +61,9 @@ module SFTP
 
       options[:error_rate] = options[:error_rate].to_f unless options[:error_rate].nil?
       @options[:error_rate] = options[:error_rate] || options["error_rate"] || DEFAULT_ERROR_RATE
-      @options[:error_rate] *= 100
 
       options[:drop_rate] = options[:drop_rate].to_f unless options[:drop_rate].nil?
       @options[:drop_rate] = options[:drop_rate] || options["drop_rate"] || DEFAULT_DROP_RATE
-      @options[:drop_rate] *= 100
     end
 
     # When something is on the line
@@ -123,8 +122,8 @@ module SFTP
       @stats[:timeouts] += 1
       if @type == :receiving
         # Timeout expecting a frame
-        puts "Timeout on #{@current_frame}"
-        nacknowledge_frame @current_frame
+        puts "Timeout on #{(@current_frame % @options[:window_size]) + (@options[:window_size] * (@window % 2))}"
+        nacknowledge_frame (@current_frame % @options[:window_size]) + (@options[:window_size] * (@window % 2))
       else
         # Timeout expecting an ack
       end
@@ -370,7 +369,7 @@ module SFTP
       puts "Sending frame #{sequence_number}"
       @stats[:frames_sent] += 1
 
-      if rand(100) < @options[:drop_rate]
+      if rand(100) < @options[:drop_rate] * 100
         @stats[:dropped] += 1
         puts "Dropped frame"
         return
@@ -380,7 +379,7 @@ module SFTP
       @socket.puts "#{sequence_number} #{checksum sequence_number}"
 
       to_send = String.new(@buffer[sequence_number])
-      if rand(100) < @options[:error_rate]
+      if rand(100) < @options[:error_rate] * 100
         @stats[:corrupted] += 1
         puts to_send.length
         puts to_send.getbyte(0)

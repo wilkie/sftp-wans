@@ -252,10 +252,8 @@ module SFTP
     # CONFIG
     # Set config vars
     def command_config var, val
-      @config[var.intern] = val
-      @data_connections.each do |data_connection|
-        data_connection.set_options @config
-      end
+      config = @data_connection.options.merge({var.intern => val})
+      @data_connection.set_options config
     end
 
     def command_clear_stats

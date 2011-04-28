@@ -3,8 +3,8 @@
 require_relative 'server'
 require 'yaml'
 
-port = 8085
-data_port = 8086
+port = 8081
+data_port = 8088
 puts "Running SFTP server on port #{port}"
 
 config = nil
