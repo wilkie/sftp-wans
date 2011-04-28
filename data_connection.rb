@@ -7,8 +7,8 @@ module SFTP
 
     DEFAULT_PORT = 8081
 
-    DEFAULT_WINDOW_SIZE = 4
-    DEFAULT_FRAME_SIZE = 4
+    DEFAULT_WINDOW_SIZE = 16
+    DEFAULT_FRAME_SIZE = 16
     DEFAULT_IMPLEMENTATION = :select_repeat # Or :go_back
     DEFAULT_TIMEOUT = 0.5
 
@@ -28,15 +28,15 @@ module SFTP
         @socket = options[:socket]
       end
 
-      @window_size = options[:window_size] || options["window size"] || DEFAULT_WINDOW_SIZE
-      @frame_size = options[:frame_size] || options["frame size"] || DEFAULT_FRAME_SIZE
+      @window_size = options[:window_size] || options["window_size"] || DEFAULT_WINDOW_SIZE
+      @frame_size = options[:frame_size] || options["frame_size"] || DEFAULT_FRAME_SIZE
       @implementation = options[:implementation] || options["implementation"] || DEFAULT_IMPLEMENTATION
       @timeout = options[:timeout] || options["timeout"] || DEFAULT_TIMEOUT
 
-      @error_rate = options[:error_rate] || options["error rate"] || DEFAULT_ERROR_RATE
+      @error_rate = options[:error_rate] || options["error_rate"] || DEFAULT_ERROR_RATE
       @error_rate *= 100
 
-      @drop_rate = options[:drop_rate] || options["drop rate"] || DEFAULT_DROP_RATE
+      @drop_rate = options[:drop_rate] || options["drop_rate"] || DEFAULT_DROP_RATE
       @drop_rate *= 100
     end
 
