@@ -198,6 +198,18 @@ module SFTP
       list.delete ".."
       list
     end
+
+    def command_clear_stats
+      @data_connection.clear_stats
+    end
+
+    def command_stat stat=nil
+      if stat.nil?
+        @data_connection.stats
+      else
+        @data_connection.stats[stat.intern]
+      end
+    end
     
     def command_config var, val=nil
       if val.nil?

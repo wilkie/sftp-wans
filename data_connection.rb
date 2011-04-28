@@ -22,12 +22,7 @@ module SFTP
 
       @stats = {}
 
-      @stats[:corrupted] = 0
-      @stats[:dropped] = 0
-      @stats[:frames_sent] = 0
-      @stats[:redundant_frames] = 0
-      @stats[:frames_received] = 0
-      @stats[:timeouts] = 0
+      clear_stats
 
       if options[:host]
         port = options[:port]
@@ -38,6 +33,15 @@ module SFTP
       end
 
       set_options options
+    end
+
+    def clear_stats
+      @stats[:corrupted] = 0
+      @stats[:dropped] = 0
+      @stats[:frames_sent] = 0
+      @stats[:redundant_frames] = 0
+      @stats[:frames_received] = 0
+      @stats[:timeouts] = 0
     end
 
     def set_options options

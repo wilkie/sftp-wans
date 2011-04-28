@@ -257,5 +257,9 @@ module SFTP
         data_connection.set_options @config
       end
     end
+
+    def command_clear_stats
+      @data_connection.clear_stats
+    end
   end
 end
