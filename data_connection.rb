@@ -69,6 +69,7 @@ module SFTP
 
     # When something is on the line
     def ping
+      return if done?
       if @type == :receiving
         # Receive packets
         header = @socket.readline
@@ -331,6 +332,7 @@ module SFTP
       # append to file and up the delivered count
       @delivered += @options[:frame_size]
       @next_frame += 1 if @options[:implementation] == :go_back
+      @current_frame = @next_frame if @options[:implementation] == :go_back
       puts "Next Frame: #{@next_frame}"
 
       cur_seq_num += 1
