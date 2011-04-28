@@ -86,6 +86,7 @@ module SFTP
           acknowledge_frame sequence_number
         else
           puts "Corruption Detected"
+          @stats[:corrupted] += 1
           nacknowledge_frame sequence_number
         end
       else
