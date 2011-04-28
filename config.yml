@@ -6,7 +6,7 @@ drop_rate: 0.1
 window_size: 16
 frame_size: 1024
 
-nameserver: 127.0.0.1:8089
+nameserver: arsenic.cs.pitt.edu:32000
 
 timeout: 0.05
 

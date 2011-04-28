@@ -16,8 +16,8 @@ module SFTP
       @data_sockets = []
       @data_connections = []
       @data_port = data_port
-      @listener = TCPServer.new('127.0.0.1', port)
-      @data_listener = TCPServer.new('127.0.0.1', data_port)
+      @listener = TCPServer.new(port)
+      @data_listener = TCPServer.new(data_port)
     end
 
     def run

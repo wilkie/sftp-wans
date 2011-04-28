@@ -47,7 +47,7 @@ module SFTP
       else
         data_response = ""
         if not data_port.nil?
-          data_listener = TCPServer.new(host, data_port)
+          data_listener = TCPServer.new(data_port)
 
           @socket.puts "OPEN #{data_port}"
           select([data_listener])

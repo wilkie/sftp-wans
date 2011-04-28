@@ -8,7 +8,7 @@ module SFTP
       if host.nil?
         @names = {}
         @clients = []
-        @listener = TCPServer.new('127.0.0.1', port)
+        @listener = TCPServer.new(port)
       else
         # abstraction to a name server client
         @socket = TCPSocket.new(host, port)
