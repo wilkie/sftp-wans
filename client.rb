@@ -243,7 +243,14 @@ module SFTP
       end
     end
     
-    def command_config var, val=nil
+    def command_config var=nil, val=nil
+      if var.nil?
+        if !closed?
+          return @data_connection.options
+        else
+          return @config
+        end
+      end
       if val.nil?
         return @config[var.intern] || @config[var] unless @config.nil?
       end
@@ -252,8 +259,8 @@ module SFTP
       # if already open then pass to server
       if !closed?
         @socket.puts "CONFIG #{var} #{val}"
+        @data_connection.set_options @config
       end 
-      @data_connection.set_options @config
     end
     
   end
