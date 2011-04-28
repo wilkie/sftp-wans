@@ -199,7 +199,10 @@ module SFTP
       list
     end
     
-    def command_config var, val
+    def command_config var, val=nil
+      if val.nil?
+        return @config[var.intern] || @config[var] unless @config.nil?
+      end
       # Set @config[:var]=val
       @config[var.intern] = val
       # if already open then pass to server
