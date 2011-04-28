@@ -1,4 +1,5 @@
 require_relative 'server'
+require_relative 'name_server'
 
 module SFTP
   class Client
@@ -14,6 +15,26 @@ module SFTP
     end
 
     def command_open host, port = SFTP::Server::DEFAULT_PORT, data_port = nil
+      if host.match /^\d*\.\d*(?:\.\d*\.\d*)?$/
+        # is IP
+      else
+        # is name
+        # Contact name server
+        @config["nameserver"].match /^(.*):(.*)$/
+        nameserver_host = $1
+        nameserver_port = $2
+
+        name_server = NameServer.new(nameserver_port, nameserver_host)
+        old_host = host
+        ip = name_server.resolve host
+        host = ip.first
+        port = ip.last
+
+        puts "Resolved #{old_host} to #{host}:#{port}"
+
+        name_server.close
+      end
+
       unless @socket.nil?
         command_close
       end

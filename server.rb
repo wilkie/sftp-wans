@@ -1,5 +1,6 @@
 require 'socket'
 require_relative 'data_connection'
+require_relative 'name_server'
 
 module SFTP
   class Server
@@ -8,6 +9,7 @@ module SFTP
     DEFAULT_PORT = 8080
 
     def initialize(config = nil, port = DEFAULT_PORT, data_port = SFTP::DataConnection::DEFAULT_PORT)
+      @port = port
       @config = config
       @clients = []
       @directories = []
@@ -19,6 +21,15 @@ module SFTP
     end
 
     def run
+      # connect to name server
+      @config["nameserver"].match /^(.*):(.*)$/
+      nameserver_host = $1
+      nameserver_port = $2
+
+      name_server = NameServer.new(nameserver_port, nameserver_host)
+      name_server.assign @config["name"], @port
+      name_server.close
+
       while true do
         selected = select([@listener, @data_listener] + @clients + @data_sockets, nil, nil, 0)
         if selected.nil?

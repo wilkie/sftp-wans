@@ -1,12 +1,14 @@
-error_rate: 0.2
-drop_rate: 0.2
+name: demo_server
 
-window_size: 40
-frame_size: 40
+error_rate: 0.1
+drop_rate: 0.1
+
+window_size: 1024
+frame_size: 16
 
 nameserver: 127.0.0.1:8089
 
-timeout: 0.5
+timeout: 0.05
 
 implementation: select_repeat
 #implementation: go_back
