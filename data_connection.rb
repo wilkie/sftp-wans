@@ -5,8 +5,12 @@ module SFTP
     require 'digest/md5'
     require 'stringio'
 
+    # Properties
+
     attr_accessor :options
     attr_accessor :stats
+
+    # Various defaults for the DataConnection variables
 
     DEFAULT_PORT = 8081
 
@@ -18,6 +22,7 @@ module SFTP
     DEFAULT_DROP_RATE = 0.2
     DEFAULT_ERROR_RATE = 0.4
 
+    # Establish a Data Connection
     def initialize options
       # stats
 
@@ -36,6 +41,7 @@ module SFTP
       set_options options
     end
 
+    # Clear statistics
     def clear_stats
       @stats[:corrupted] = 0
       @stats[:dropped] = 0
@@ -46,6 +52,7 @@ module SFTP
       @stats[:out_of_order] = 0
     end
 
+    # Reset variables
     def set_options options
       @options = {}
 
@@ -126,6 +133,7 @@ module SFTP
       end
     end
 
+    # Called upon a timeout
     def timeout
       @stats[:timeouts] += 1
       if @type == :receiving
@@ -140,14 +148,17 @@ module SFTP
       reset_timeout
     end
 
+    # Restart the timer
     def reset_timeout
       @expire_time = Time.now
     end
 
+    # Stop timeouts from occurring
     def stop_timeout
       @expire_time = nil
     end
 
+    # During idle time, a timeout may occur or a frame might be sent
     def idle
       unless @expire_time.nil?
         elapsed = Time.now - @expire_time
@@ -177,14 +188,16 @@ module SFTP
       end
     end
 
+    # After a file is transferred, this function can give the contents
+    # to you. This is used to display the contents of a directory when
+    # RLS is used.
     def contents
       # give the string contents of the file
       @file.seek 0
       @file.read @file.size
     end
 
-    # Keep track of statistics about the transfer
-
+    # Determine the checksum using MD5 hash
     def checksum sequence_number
       Digest::MD5.hexdigest(@buffer[sequence_number])
     end
@@ -241,6 +254,7 @@ module SFTP
       send_window
     end
 
+    # This will acknowledge the given frame
     def acknowledge_frame sequence_number
       puts "Acking #{sequence_number}"
 
@@ -301,6 +315,7 @@ module SFTP
       end
     end
 
+    # This is called when an ACK is received
     def receive_acknowledgement sequence_number
       frame_acknowledged = sequence_number-1
       if frame_acknowledged == -1
@@ -341,6 +356,7 @@ module SFTP
       cur_seq_num
     end
 
+    # Send a NAK to indicate failure to receive a frame
     def nacknowledge_frame sequence_number
       # Already acked?
       return if @buffer[sequence_number] == ""
@@ -368,6 +384,7 @@ module SFTP
       @socket.puts "NAK #{sequence_number}"
     end
 
+    # This is called when a NAK is received
     def receive_nacknowledgement sequence_number
       if @buffer[sequence_number] == ""
         puts "Nah, We have received an ACK for this frame"
@@ -392,10 +409,12 @@ module SFTP
       end
     end
 
+    # This will tell you if the transfer is complete.
     def done?
       @delivered >= @filesize
     end
 
+    # Receive a frame from the socket.
     def receive_frame sequence_number
       @stats[:frames_received] += 1
 
@@ -429,17 +448,20 @@ module SFTP
       return :received
     end
 
+    # Called to clear the buffers for a new window.
     def receive_window
       @options[:window_size].times do |i|
         @buffer[i + ((@window % 2) * @options[:window_size])] = nil
       end
     end
 
+    # Called when a new window is to be received.
     def receive_next_window
       @window += 1
       receive_window
     end
 
+    # Sends the given frame
     def send_frame sequence_number
       puts "Sending frame #{sequence_number}"
       @stats[:frames_sent] += 1
@@ -468,6 +490,7 @@ module SFTP
       puts "Sent frame #{sequence_number}"
     end
 
+    # Reads in the frame from the file into the buffer.
     def send_next_frame sequence_number
       # pull from file into buffer
       frames_delivered = @delivered / @options[:frame_size]
@@ -499,6 +522,7 @@ module SFTP
       end
     end
 
+    # Will write out a window's worth of the buffer to the file.
     def write_out_window
       @options[:window_size].times do |i|
         idx = i + ((@window % 2) * @options[:window_size])
