@@ -32,18 +32,25 @@ module SFTP
     end
 
     def set_options options
-      @options = options
-      @options[:window_size] ||= options["window_size"] || DEFAULT_WINDOW_SIZE
-      @options[:frame_size] ||= options["frame_size"] || DEFAULT_FRAME_SIZE
-      options[:implementation] = options[:implementation].intern unless options[:implementation].nil?
-      options["implementation"] = options["implementation"].intern unless options["implementation"].nil?
-      @options[:implementation] = options[:implementation] || options["implementation"] || DEFAULT_IMPLEMENTATION
-      @options[:timeout] ||= options["timeout"] || DEFAULT_TIMEOUT
+      @options = {}
 
-      @options[:error_rate] ||= options["error_rate"] || DEFAULT_ERROR_RATE
+      options[:window_size] = options[:window_size].to_i unless options[:window_size].nil?
+      @options[:window_size] = options[:window_size] || options["window_size"] || DEFAULT_WINDOW_SIZE
+      options[:frame_size] = options[:frame_size].to_i unless options[:frame_size].nil?
+      @options[:frame_size] = options[:frame_size] || options["frame_size"] || DEFAULT_FRAME_SIZE
+      options[:implementation] ||= options[:implementation].intern unless options[:implementation].nil?
+      options["implementation"] ||= options["implementation"].intern unless options["implementation"].nil?
+      @options[:implementation] = options[:implementation] || options["implementation"] || DEFAULT_IMPLEMENTATION
+
+      options[:timeout] = options[:timeout].to_f unless options[:timeout].nil?
+      @options[:timeout] = options[:timeout] || options["timeout"] || DEFAULT_TIMEOUT
+
+      options[:error_rate] = options[:error_rate].to_f unless options[:error_rate].nil?
+      @options[:error_rate] = options[:error_rate] || options["error_rate"] || DEFAULT_ERROR_RATE
       @options[:error_rate] *= 100
 
-      @options[:drop_rate] ||= options["drop_rate"] || DEFAULT_DROP_RATE
+      options[:drop_rate] = options[:drop_rate].to_f unless options[:drop_rate].nil?
+      @options[:drop_rate] = options[:drop_rate] || options["drop_rate"] || DEFAULT_DROP_RATE
       @options[:drop_rate] *= 100
     end
 
@@ -69,6 +76,7 @@ module SFTP
         if sum == check
           acknowledge_frame sequence_number
         else
+          puts "Corruption Detected"
           nacknowledge_frame sequence_number
         end
       else

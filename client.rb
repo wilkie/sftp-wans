@@ -206,7 +206,7 @@ module SFTP
       if !closed?
         @socket.puts "CONFIG #{var} #{val}"
       end 
-      @data_connection.set_options @options
+      @data_connection.set_options @config
     end
     
   end
