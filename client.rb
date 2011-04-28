@@ -160,10 +160,15 @@ module SFTP
       "Transfer complete."
     end
 
-    def command_mput filenames
+    def command_mput *filenames
       return "Connection Not Open" if closed?
-      @socket.puts "MGET #{files.inject(""){|l,e| l = "#{l}#{e} "}}"
-      # Wait for data to be sent
+
+      filenames.each do |f|
+        command_put f
+        # Wait for data to be sent
+      end
+
+      "Transfer complete."
     end
 
     def command_lcd path
