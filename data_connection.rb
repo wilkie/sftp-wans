@@ -58,7 +58,9 @@ module SFTP
         puts header
 
         # Receive data
-        receive_frame sequence_number
+        if not receive_frame sequence_number
+          return
+        end
 
         # Perform checksum
         sum = checksum sequence_number
@@ -103,6 +105,8 @@ module SFTP
       else
         # Timeout expecting an ack
       end
+
+      reset_timeout
     end
 
     def reset_timeout
@@ -308,7 +312,7 @@ module SFTP
       if not @buffer[sequence_number].nil?
         # Already have this frame
         puts "Redundant frame #{sequence_number}"
-        return
+        return false
       end
 
       # Read in the frame
@@ -322,6 +326,8 @@ module SFTP
       @buffer[sequence_number] = @socket.read(to_read)
 
       reset_timeout
+
+      return true
     end
 
     def receive_window
