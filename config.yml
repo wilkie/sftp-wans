@@ -1,5 +1,5 @@
-error_rate: 0.9
-drop_rate: 0.2
+error_rate: 0.0
+drop_rate: 0.0
 
 window_size: 40
 frame_size: 40

@@ -7,14 +7,15 @@ module SFTP
 
     DEFAULT_PORT = 8080
 
-    def initialize(config = nil, port = DEFAULT_PORT)
+    def initialize(config = nil, port = DEFAULT_PORT, data_port = SFTP::DataConnection::DEFAULT_PORT)
       @config = config
       @clients = []
       @directories = []
       @data_sockets = []
       @data_connections = []
+      @data_port = data_port
       @listener = TCPServer.new('127.0.0.1', port)
-      @data_listener = TCPServer.new('127.0.0.1', SFTP::DataConnection::DEFAULT_PORT)
+      @data_listener = TCPServer.new('127.0.0.1', data_port)
     end
 
     def run
@@ -131,7 +132,7 @@ module SFTP
       # negotiate for a data connection
       # if port is nil, the server waits for a data connection from this client
       if port.nil?
-        @client.puts "OK #{SFTP::DataConnection::DEFAULT_PORT}"
+        @client.puts "OK #{@data_port}"
       else
         remote_host = @client.peeraddr(false).last
         @data_socket = TCPSocket.new(remote_host, port)
