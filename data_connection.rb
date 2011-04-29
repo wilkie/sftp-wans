@@ -254,6 +254,8 @@ module SFTP
 
     # Initiate a transfer expecting to receive a file of a particular size
     def receive filename, filesize
+      stop_timeout
+
       @type = :receiving
       
       # Open the file
@@ -288,6 +290,8 @@ module SFTP
 
     # Initiate a transfer where we are responsible for sending the file
     def transfer file
+      stop_timeout
+
       @type = :sending
       @file = file
       @filesize = file.size
