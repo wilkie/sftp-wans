@@ -3,12 +3,22 @@ require 'socket'
 module SFTP
   class NameServer
     DEFAULT_PORT = 8089
+    attr_accessor :port
 
     def initialize port = DEFAULT_PORT, host = nil
       if host.nil?
         @names = {}
         @clients = []
-        @listener = TCPServer.new(port)
+        port_attempt = port
+        attempts = 64
+        begin
+          @port = port_attempt
+          @listener = TCPServer.new(port_attempt)
+        rescue
+          port_attempt = port + rand(1024)
+          attempts = attempts - 1
+          retry if attempts>0
+        end
       else
         # abstraction to a name server client
         @socket = TCPSocket.new(host, port)
