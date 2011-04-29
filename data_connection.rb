@@ -129,7 +129,7 @@ module SFTP
           max_frame = @options[:window_size] * ((@window % 2) + 1)
 
           blah_frame = @next_frame % (@options[:window_size] * 2)
-          blah_frame = 32 if blah_frame == 0 and max_frame == 32
+          blah_frame = (@options[:window_size]*2) if blah_frame == 0 and max_frame == (@options[:window_size]*2)
           nacknowledge_frame blah_frame
         elsif sum == check
           acknowledge_frame sequence_number
@@ -152,9 +152,8 @@ module SFTP
           max_frame = @options[:window_size] * ((@window % 2) + 1)
 
           blah_frame = @next_frame % (@options[:window_size] * 2)
-          blah_frame = 32 if blah_frame == 0 and max_frame == 32
+          blah_frame = (@options[:window_size]*2) if blah_frame == 0 and max_frame == (@options[:window_size]*2)
           if blah_frame == max_frame
-          #if (@delivered % (@options[:frame_size] * @options[:window_size])) == 0
             # window has been acknowledged
             send_next_window
           elsif @delivered >= @filesize
@@ -350,7 +349,7 @@ module SFTP
 
 #      if (@delivered % (@options[:frame_size] * @options[:window_size])) == 0
       blah_frame = @next_frame % (@options[:window_size] * 2)
-      blah_frame = 32 if blah_frame == 0 and max_frame == 32
+      blah_frame = (@options[:window_size]*2) if blah_frame == 0 and max_frame == (@options[:window_size]*2)
       if blah_frame == max_frame
         puts "Window received."
         receive_next_window
@@ -399,8 +398,6 @@ module SFTP
 
       if @options[:implementation] == :go_back and frame_acknowledged > expected_frame
         puts "Cumulative Acknowledgement #{frame_acknowledged} > #{expected_frame}"
-        if expected_frame == 31
-        end
         # Ack all from expected_frame to frame_acknowledged
         (expected_frame..frame_acknowledged-1).each do |i|
           perform_acknowledgement i
@@ -429,13 +426,13 @@ module SFTP
       @current_frame = @next_frame if @options[:implementation] == :go_back
 
       blah_frame = @next_frame % (@options[:window_size] * 2)
-      blah_frame = 32 if blah_frame == 0 and max_frame == 32
+      blah_frame = (@options[:window_size]*2) if blah_frame == 0 and max_frame == (@options[:window_size]*2)
       if @options[:implementation] == :selective_repeat and frame_acknowledged == blah_frame
         # determine the next frame we expect an ACK for
         while blah_frame < max_frame and @buffer[blah_frame] == ""
           @next_frame += 1
           blah_frame = @next_frame % (@options[:window_size] * 2)
-          blah_frame = 32 if blah_frame == 0 and max_frame == 32
+          blah_frame = (@options[:window_size]*2) if blah_frame == 0 and max_frame == (@options[:window_size]*2)
         end
       end
 
