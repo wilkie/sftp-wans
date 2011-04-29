@@ -96,12 +96,12 @@ module SFTP
                 puts "Client #{@index} command"
                 interpret_command socket.readline
               end
-            #rescue
+            rescue
               # Just close the socket
-             # puts "Client #{@index} closed"
-             # @clients.delete_at @index
-             # @directories.delete_at @index
-             # socket.close
+              puts "Client #{@index} closed"
+              @clients.delete_at @index
+              @directories.delete_at @index
+              socket.close
             end
           elsif @data_sockets.include? socket
             # data connection
@@ -121,7 +121,12 @@ module SFTP
                 puts "Data connection receiving..."
                 @data_connect.ping
               end
-            #rescue
+            rescue
+              # Just close the socket
+              puts "Data Connection #{@index} closed"
+              @data_connections.delete_at @index
+              @data_sockets.delete_at @index
+              socket.close
             end
           end
         end
