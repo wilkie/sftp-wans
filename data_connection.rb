@@ -93,7 +93,6 @@ module SFTP
         header.match /^(\d+)\s+(.+)$/
         sequence_number = $1.to_i
         check = $2
-        puts header
 
         # ACK anything if we have received the file
         if done?
@@ -133,11 +132,6 @@ module SFTP
           blah_frame = 32 if blah_frame == 0 and max_frame == 32
           nacknowledge_frame blah_frame
         elsif sum == check
-          if @options[:implementation] == :selective_repeat
-           # @delivered += @options[:frame_size]
-          end
-          puts "#{@delivered} bytes delivered"
-
           acknowledge_frame sequence_number
         else
           puts "Corruption Detected"
@@ -154,8 +148,6 @@ module SFTP
           # Respond to ACK
           sequence_number = $1.to_i
           receive_acknowledgement sequence_number
-
-          puts "DELIVERED #{@delivered}"
 
           max_frame = @options[:window_size] * ((@window % 2) + 1)
 
@@ -179,6 +171,9 @@ module SFTP
 
     # Called upon a timeout
     def timeout
+      return if @file.nil?
+      return if done?
+
       @stats[:timeouts] += 1
       if @type == :receiving
         # Timeout expecting a frame
@@ -281,6 +276,7 @@ module SFTP
       @current_frame = 0
       @next_frame = 0
       @buffer = Array.new(@options[:window_size] * 2) { nil }
+      @sent = Array.new(@options[:window_size] * 2) { 0 }
 
       start_timeout
 
@@ -304,6 +300,7 @@ module SFTP
       @next_frame = 0
 
       @buffer = Array.new(@options[:window_size] * 2) { nil }
+      @sent = Array.new(@options[:window_size] * 2) { 0 }
 
       start_timeout
 
@@ -340,10 +337,7 @@ module SFTP
           cur_seq_num += 1
           @current_frame += 1
           @next_frame += 1 
-#          if @options[:implementation] == :go_back
-            @delivered += @options[:frame_size]
-#          end
-          puts "Next Frame: #{@next_frame}"
+          @delivered += @options[:frame_size]
         end
       end
 
@@ -355,7 +349,7 @@ module SFTP
         receive_next_window
       end
 
-      if drop_ack?
+      if drop_ack? and not done?
         puts "Dropping Ack"
         @stats[:acks_dropped] += 1
         return
@@ -402,7 +396,6 @@ module SFTP
         end
         # Ack all from expected_frame to frame_acknowledged
         (expected_frame..frame_acknowledged-1).each do |i|
-          puts "Perform Acknowledgement #{i}"
           perform_acknowledgement i
         end
 
@@ -427,7 +420,6 @@ module SFTP
       @delivered += @options[:frame_size]
       @next_frame += 1 if @options[:implementation] == :go_back
       @current_frame = @next_frame if @options[:implementation] == :go_back
-      puts "Next Frame: #{@next_frame}"
 
       blah_frame = @next_frame % (@options[:window_size] * 2)
       blah_frame = 32 if blah_frame == 0 and max_frame == 32
@@ -438,12 +430,9 @@ module SFTP
           blah_frame = @next_frame % (@options[:window_size] * 2)
           blah_frame = 32 if blah_frame == 0 and max_frame == 32
         end
-        puts "Next frame is now #{@next_frame}"
       end
 
       cur_seq_num += 1
-
-      puts "#{@delivered} bytes sent successfully."
 
       if done?
         done
@@ -481,7 +470,6 @@ module SFTP
       if @options[:implementation] == :go_back
         next_frame = ((@window * @options[:window_size]) + (sequence_number % @options[:window_size]))
         @next_frame = [next_frame, @next_frame].min
-        puts "Current Frame Now #{@next_frame}"
         @current_frame = @next_frame
 
         # Undo work done
@@ -494,6 +482,7 @@ module SFTP
 
       if drop_ack?
         @stats[:naks_dropped] += 1
+        puts "Dropped NAK"
         return
       end
 
@@ -508,7 +497,6 @@ module SFTP
       @stats[:naks_received] += 1
 
       if @buffer[sequence_number] == ""
-        puts "Nah, We have received an ACK for this frame"
         return
       end
 
@@ -519,14 +507,12 @@ module SFTP
       min_frame = @options[:window_size] * ((@window % 2))
 
       if sequence_number >= max_frame or sequence_number < min_frame
-        puts "Nah, This is from another window"
         return
       end
 
       if @options[:implementation] == :go_back
         next_frame = ((@window * @options[:window_size]) + (sequence_number % @options[:window_size]))
         @next_frame = [next_frame, @next_frame].min
-        puts "Current Frame Now #{@next_frame}"
         @current_frame = @next_frame
 
         # Undo work done
@@ -578,9 +564,8 @@ module SFTP
 
       reset_timeout
 
-      puts "Reading frame #{sequence_number} == #{expected_frame} (#{to_read} bytes)"
       @buffer[sequence_number] = buffer
-      @buffer_len += 1
+      @buffer_len += 1 if @options[:implementation] == :selective_repeat
       if @buffer_len > @max_buffer_len
         @max_buffer_len = @buffer_len
       end
@@ -620,6 +605,15 @@ module SFTP
 
     # Sends the given frame
     def send_frame sequence_number
+      if @sent[sequence_number] == 0
+        @sent[sequence_number] = 1
+        @buffer_len += 1
+
+        if @buffer_len > @max_buffer_len
+          @max_buffer_len = @buffer_len
+        end
+      end
+
       puts "Sending frame #{sequence_number}"
       @stats[:frames_sent] += 1
 
@@ -643,8 +637,6 @@ module SFTP
       # timeout for acknowledgement
       reset_timeout
       @socket.write to_send
-
-      puts "Sent frame #{sequence_number}"
     end
 
     # Reads in the frame from the file into the buffer.
@@ -663,7 +655,6 @@ module SFTP
       end
 
       to_read = [@options[:frame_size], @filesize - bytes_sent].min
-      puts "Sending #{to_read} bytes"
       @buffer[sequence_number] = @file.read(to_read)
     end
 
@@ -678,6 +669,7 @@ module SFTP
       # set the frames for this window to nil (preserve the last window)
       @options[:window_size].times do |i|
         @buffer[i + ((@window % 2) * @options[:window_size])] = nil
+        @sent[i + ((@window % 2) * @options[:window_size])] = 0
       end
 
       @next_frame = (@window * @options[:window_size])
