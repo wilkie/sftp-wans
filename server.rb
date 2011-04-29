@@ -8,6 +8,9 @@ module SFTP
 
     DEFAULT_PORT = 8080
 
+    attr_accessor :port
+    attr_accessor :data_port
+
     def initialize(config = nil, port = DEFAULT_PORT, data_port = SFTP::DataConnection::DEFAULT_PORT)
       @config = config
       @clients = []
