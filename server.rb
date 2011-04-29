@@ -18,9 +18,9 @@ module SFTP
       @data_sockets = []
       @data_connections = []
       @listener = find_tcpserver(port)
-      @port = @listener.connect_address().ip_port
+      @port = @listener.addr[1]
       @data_listener = find_tcpserver(data_port)
-      @data_port = @data_listener.connect_address().ip_port
+      @data_port = @data_listener.addr[1]
     end
 
     def find_tcpserver(min_port, port_range=1024, attempts=64)
