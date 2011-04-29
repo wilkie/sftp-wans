@@ -99,6 +99,7 @@ module SFTP
         if done?
           response = receive_frame sequence_number
 
+          @stats[:acks_sent] += 1
           if (sequence_number+1) == (@options[:window_size] * 2)
             @socket.puts "ACK 0"
           else
@@ -125,7 +126,12 @@ module SFTP
         if response == :illegal
           puts "Out of order frame #{sequence_number}"
           @stats[:out_of_order] += 1
-          nacknowledge_frame @next_frame
+
+          max_frame = @options[:window_size] * ((@window % 2) + 1)
+
+          blah_frame = @next_frame % (@options[:window_size] * 2)
+          blah_frame = 32 if blah_frame == 0 and max_frame == 32
+          nacknowledge_frame blah_frame
         elsif sum == check
           if @options[:implementation] == :selective_repeat
            # @delivered += @options[:frame_size]
@@ -150,7 +156,13 @@ module SFTP
           receive_acknowledgement sequence_number
 
           puts "DELIVERED #{@delivered}"
-          if (@delivered % (@options[:frame_size] * @options[:window_size])) == 0
+
+          max_frame = @options[:window_size] * ((@window % 2) + 1)
+
+          blah_frame = @next_frame % (@options[:window_size] * 2)
+          blah_frame = 32 if blah_frame == 0 and max_frame == 32
+          if blah_frame == max_frame
+          #if (@delivered % (@options[:frame_size] * @options[:window_size])) == 0
             # window has been acknowledged
             send_next_window
           elsif @delivered >= @filesize
@@ -180,7 +192,6 @@ module SFTP
         # Resend the first frame to not be ack'd
         if @buffer[expected_frame] == ""
           # it is acked, wtf
-          puts "acked?"
           return
         end
         puts "Resending #{expected_frame}"
@@ -372,25 +383,23 @@ module SFTP
       @stats[:avg_buffer_len] /= (@window+1)
     end
 
-    # This is called when an ACK is received
-    def receive_acknowledgement sequence_number
-      @stats[:acks_received] += 1
-
-      frame_acknowledged = sequence_number-1
-      if frame_acknowledged == -1
-        frame_acknowledged = (@options[:window_size] * 2) - 1
-      end
-      puts "Frame #{frame_acknowledged} ACK'd"
-
+    def perform_acknowledgement frame_acknowledged
       expected_frame = (@next_frame % @options[:window_size]) + (@options[:window_size] * (@window % 2))
 
       frames_delivered = @delivered / @options[:frame_size]
       next_frame = frames_delivered % (@options[:window_size] * 2)
 
-      if @options[:implementation] == :go_back and frame_acknowledged != expected_frame
-        puts "I expected #{expected_frame} instead of #{frame_acknowledged}"
-        # Can't acknowledge out of order frames!
-        return
+      if @options[:implementation] == :go_back and frame_acknowledged > expected_frame
+        puts "Cumulative Acknowledgement"
+        # Ack all from expected_frame to frame_acknowledged
+        (expected_frame..frame_acknowledged-1).each do |i|
+          perform_acknowledgement i
+        end
+
+        expected_frame = (@next_frame % @options[:window_size]) + (@options[:window_size] * (@window % 2))
+
+        frames_delivered = @delivered / @options[:frame_size]
+        next_frame = frames_delivered % (@options[:window_size] * 2)
       end
 
       cur_seq_num = frame_acknowledged
@@ -410,10 +419,14 @@ module SFTP
       @current_frame = @next_frame if @options[:implementation] == :go_back
       puts "Next Frame: #{@next_frame}"
 
-      if @options[:implementation] == :selective_repeat and frame_acknowledged == @next_frame
+      blah_frame = @next_frame % (@options[:window_size] * 2)
+      blah_frame = 32 if blah_frame == 0 and max_frame == 32
+      if @options[:implementation] == :selective_repeat and frame_acknowledged == blah_frame
         # determine the next frame we expect an ACK for
-        while @next_frame < max_frame and @buffer[@next_frame] == ""
+        while blah_frame < max_frame and @buffer[blah_frame] == ""
           @next_frame += 1
+          blah_frame = @next_frame % (@options[:window_size] * 2)
+          blah_frame = 32 if blah_frame == 0 and max_frame == 32
         end
         puts "Next frame is now #{@next_frame}"
       end
@@ -427,6 +440,19 @@ module SFTP
       end
 
       cur_seq_num
+    end
+
+    # This is called when an ACK is received
+    def receive_acknowledgement sequence_number
+      @stats[:acks_received] += 1
+
+      frame_acknowledged = sequence_number-1
+      if frame_acknowledged == -1
+        frame_acknowledged = (@options[:window_size] * 2) - 1
+      end
+      puts "Frame #{frame_acknowledged} ACK'd"
+
+      perform_acknowledgement frame_acknowledged
     end
 
     # Send a NAK to indicate failure to receive a frame
@@ -518,6 +544,14 @@ module SFTP
       end
 
       buffer = @socket.read(to_read)
+
+      # Is it from another window? We can ack these
+      max_frame = @options[:window_size] * ((@window % 2) + 1)
+      min_frame = @options[:window_size] * ((@window % 2))
+      if sequence_number >= max_frame or sequence_number < min_frame
+        # assume last window
+        return :redundant
+      end
 
       expected_frame = (@next_frame % @options[:window_size]) + (@options[:window_size] * (@window % 2))
       if @options[:implementation] == :go_back and sequence_number != expected_frame
@@ -636,7 +670,7 @@ module SFTP
         @buffer[i + ((@window % 2) * @options[:window_size])] = nil
       end
 
-      @next_frame = (@window * @options[:window_size]) + (@window % 2) * @options[:window_size]
+      @next_frame = (@window * @options[:window_size])
 
       # Send frames
       @options[:window_size].times do |i|
