@@ -184,7 +184,7 @@ module SFTP
       while path.gsub! /\/\.(\/|$)/, "/"
       end
 
-      while path.gsub! /(\/[^\/]*?|^)\/..(\/|$)/, "/"
+      while path.gsub! /(\/[^\/]*?|^)\/\.\.(\/|$)/, "/"
       end
 
       if path != "/" and path[-1] == "/"
@@ -236,6 +236,7 @@ module SFTP
     def command_get filename
       # construct absolute path
       filename = Server.absolute_path(@directory.path, filename)
+      puts filename
 
       # Respond with "OK #{filesize}"
       # Start sending file over data connection
