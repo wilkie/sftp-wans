@@ -356,6 +356,7 @@ module SFTP
       end
 
       if drop_ack?
+        puts "Dropping Ack"
         @stats[:acks_dropped] += 1
         return
       end
@@ -389,10 +390,19 @@ module SFTP
       frames_delivered = @delivered / @options[:frame_size]
       next_frame = frames_delivered % (@options[:window_size] * 2)
 
+      max_frame = @options[:window_size] * ((@window % 2) + 1)
+      min_frame = @options[:window_size] * ((@window % 2))
+
+      # Don't care if outside of the sending window
+      return if frame_acknowledged >= max_frame or frame_acknowledged < min_frame
+
       if @options[:implementation] == :go_back and frame_acknowledged > expected_frame
-        puts "Cumulative Acknowledgement"
+        puts "Cumulative Acknowledgement #{frame_acknowledged} > #{expected_frame}"
+        if expected_frame == 31
+        end
         # Ack all from expected_frame to frame_acknowledged
         (expected_frame..frame_acknowledged-1).each do |i|
+          puts "Perform Acknowledgement #{i}"
           perform_acknowledgement i
         end
 
