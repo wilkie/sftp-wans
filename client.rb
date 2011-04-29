@@ -242,6 +242,14 @@ module SFTP
         @data_connection.stats[stat.intern]
       end
     end
+
+    def command_server_stat stat=nil
+      return "Connection Not Open" if closed?
+
+      @socket.puts "STAT #{stat}"
+
+      @socket.readline
+    end
     
     def command_config var=nil, val=nil
       if var.nil?

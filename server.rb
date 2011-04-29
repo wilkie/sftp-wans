@@ -234,16 +234,6 @@ module SFTP
       end
     end
 
-    # MPUT filename filesize [filename filesize]*
-    # Knows it will be retrieving many files over data connection
-    def command_mput files
-    end
-
-    # MGET filename [filename]*
-    # Knows it will be sending many files over data connection
-    def command_mget filenames
-    end
-
     # RLS
     # Will send a newline delimited list over data connection
     def command_rls
@@ -269,6 +259,14 @@ module SFTP
 
     def command_clear_stats
       @data_connection.clear_stats
+    end
+
+    def command_stat stat=nil
+      if stat.nil?
+        @client.puts @data_connection.stats
+      else
+        @client.puts @data_connection.stats[stat.intern]
+      end
     end
   end
 end

@@ -2,11 +2,13 @@ name: demo_server
 
 error_rate: 0.1
 drop_rate: 0.1
+ack_drop_rate: 0.0
 
 window_size: 16
 frame_size: 1024
 
-nameserver: arsenic.cs.pitt.edu:32000
+#nameserver: arsenic.cs.pitt.edu:32000
+nameserver: deadreckoning.cs.pitt.edu:32000
 
 timeout: 0.05
 
