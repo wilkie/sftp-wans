@@ -174,6 +174,8 @@ module SFTP
       return if @file.nil?
       return if done?
 
+      reset_timeout
+
       @stats[:timeouts] += 1
       if @type == :receiving
         # Timeout expecting a frame
@@ -192,8 +194,6 @@ module SFTP
         puts "Resending #{expected_frame}"
         send_frame expected_frame
       end
-
-      reset_timeout
     end
 
     # Allow timeouts
@@ -275,6 +275,7 @@ module SFTP
       @window = 0
       @current_frame = 0
       @next_frame = 0
+      @sum_buffer_len = 0
       @max_buffer_len = 0
       @buffer_len = 0
 
@@ -301,6 +302,7 @@ module SFTP
       @window = 0
       @current_frame = 0
       @next_frame = 0
+      @sum_buffer_len = 0
       @max_buffer_len = 0
       @buffer_len = 0
 
@@ -337,7 +339,6 @@ module SFTP
           # Clear memory
           @buffer[cur_seq_num] = ""
           @buffer_len -= 1 if @options[:implementation] == :selective_repeat
-          puts "Buffer Length -- #{@buffer_len}"
 
           # Consider the next frame
           cur_seq_num += 1
@@ -381,7 +382,7 @@ module SFTP
 
     # Called when transfer completes
     def done
-      @stats[:avg_buffer_len] /= (@window+1)
+      @stats[:avg_buffer_len] = @sum_buffer_len / (@window+1)
     end
 
     def perform_acknowledgement frame_acknowledged
@@ -418,7 +419,6 @@ module SFTP
       return if @buffer[cur_seq_num] == ""
       @buffer[cur_seq_num] = ""
       @buffer_len -= 1
-      puts "Buffer Length -- #{@buffer_len}"
 
       # we received a response, so good
       reset_timeout
@@ -582,7 +582,8 @@ module SFTP
 
     # Called to clear the buffers for a new window.
     def receive_window
-      @stats[:avg_buffer_len] += @max_buffer_len
+      @sum_buffer_len += @max_buffer_len
+      @foo = (@foo || 0) + 1
 
       @max_buffer_len = 0
       @buffer_len = 0
@@ -613,7 +614,6 @@ module SFTP
       if @sent[sequence_number] == 0
         @sent[sequence_number] = 1
         @buffer_len += 1
-        puts "Buffer Length ++ #{@buffer_len}"
 
         if @buffer_len > @max_buffer_len
           @max_buffer_len = @buffer_len
@@ -665,13 +665,11 @@ module SFTP
     end
 
     def send_window
-      if @max_buffer_len and @max_buffer_len != 0
-        @stats[:avg_buffer_len] += @max_buffer_len
-      end
+      @sum_buffer_len += @max_buffer_len
+      @foo = (@foo || 0) + 1
 
       @max_buffer_len = 0
       @buffer_len = 0
-      puts "Buffer Length == 0"
 
       # set the frames for this window to nil (preserve the last window)
       @options[:window_size].times do |i|
