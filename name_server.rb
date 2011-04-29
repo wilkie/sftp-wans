@@ -9,19 +9,22 @@ module SFTP
       if host.nil?
         @names = {}
         @clients = []
-        port_attempt = port
-        attempts = 64
-        begin
-          @port = port_attempt
-          @listener = TCPServer.new(port_attempt)
-        rescue
-          port_attempt = port + rand(1024)
-          attempts = attempts - 1
-          retry if attempts>0
-        end
+        @listener = find_tcpserver(port)
+        @port = @listener.connect_address().ip_port
       else
         # abstraction to a name server client
         @socket = TCPSocket.new(host, port)
+      end
+    end
+
+    def find_tcpserver(min_port, port_range=1024, attempts=64)
+      port_attempt = min_port
+      begin
+        TCPServer.new(port_attempt)
+      rescue
+        port_attempt = min_port + rand(port_range)
+        attempts = attempts - 1
+        retry if attempts > 0
       end
     end
 
