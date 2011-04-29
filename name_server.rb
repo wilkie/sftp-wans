@@ -10,7 +10,7 @@ module SFTP
         @names = {}
         @clients = []
         @listener = find_tcpserver(port)
-        @port = @listener.connect_address().ip_port
+        @port = @listener.addr[1]
       else
         # abstraction to a name server client
         @socket = TCPSocket.new(host, port)
