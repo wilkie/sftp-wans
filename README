@@ -1,0 +1,84 @@
+To pull the code:
+
+git clone git://github.com/wilkie/sftp-wans
+
+This will create a directory 'sftp-wans'.
+
+To Run the name server:
+
+./run_nameserver.rb
+
+Make note of the port it is using. Configure your server and client via the config.yml file to use the host and port given.
+
+To run the server:
+
+./run_server.rb config.yml
+
+The server will automatically tell the name server to resolve the name given in the script to the IP and port it is listening.
+
+To run the client:
+
+./run_client.rb config.yml
+
+Commands:
+
+Remote Commands
+
+PWD - Get remote working directory.
+RLS - List remote directory.
+RCD path - Change remote directory.
+
+Local Commands
+
+LLS - List the local directory.
+LCD - Change the local directory.
+
+Transfer Commands
+
+GET filename - Retrieve the file from the server.
+PUT filename - Transfer the file to the server.
+
+MGET filename [filename2]+ - Retreive the set of files.
+MPUT filename [filename2]+ - Transfer the set of files.
+
+Config Commands
+
+CONFIG [var_name [value]] - Will set or retreive the value.
+
+By giving no var_name, it will print all of the configuration parameters.
+Note: some are only relevant to the sender or receiver.
+
+var_name:
+
+window_size - # of frames in a window.
+frame_size - # of bytes in a frame.
+implementation - Either selective_repeat or go_back.
+timeout - Number of seconds before a timeout.
+error_rate - Probability that a frame will be corrupted.
+drop_rate - Probability that a frame will be dropped.
+ack_drop_rate - Probability that an ACK/NAK will be dropped.
+
+Statistic Commands
+
+STAT [stat_name] - Will retrieve the given statistic.
+SERVER_STAT [stat_name] - Will retreive the stat from the server.
+
+By giving no stat_name, it will print all of the statistics.
+Note: some are only relevant to the sender or receiver.
+
+stat_name:
+
+corrupted - # of corrupted frames
+frames_dropped - # of frames sent that were dropped
+frames_sent - # of frames sent overall (counts those that are dropped)
+redundant_frames - # of frames received that were already received
+frames_received - # of frames received overall (counts corrupted)
+timeouts - # of timeouts
+out_of_order - # of frames received that were not expected
+avg_buffer_len - Average of the maximum buffer size per window sent
+acks_dropped - # of acks dropped
+acks_sent - # of acks sent
+acks_received - # of acks received
+naks_dropped - # of naks dropped
+naks_sent - # of naks sent
+naks_received - # of naks received
