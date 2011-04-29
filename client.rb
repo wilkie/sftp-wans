@@ -101,6 +101,9 @@ module SFTP
 
       # Wait for data to be sent
       # Get filesize
+	  while @socket.eof? do
+	  end
+
       response = @socket.readline
       if response.match /^OK/
         filesize = response[/OK (.*)$/,1].to_i
@@ -166,7 +169,10 @@ module SFTP
       return "Connection Not Open" if closed?
       local_filename = Server.absolute_path(Dir.getwd, filename)
       file = File.new(local_filename, "rb")
-      @socket.puts "PUT #{filename} #{file.size}"
+	  file.seek 0, IO::SEEK_END
+	  file_size = file.tell
+	  file.seek 0, IO::SEEK_SET
+      @socket.puts "PUT #{filename} #{file_size}"
       response = @socket.readline
 
       @data_connection.transfer(file)

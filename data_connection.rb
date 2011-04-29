@@ -256,7 +256,7 @@ module SFTP
     def contents
       # give the string contents of the file
       @file.seek 0
-      @file.read @file.size
+      @file.read @filesize
     end
 
     # Determine the checksum using MD5 hash
@@ -311,10 +311,13 @@ module SFTP
 
       @type = :sending
       @file = file
-      @filesize = file.size
+
+	  @file.seek 0, IO::SEEK_END
+      @filesize = file.tell
+	  @file.seek 0, IO::SEEK_SET
       @total_frames = (@filesize.to_f / @options[:frame_size].to_f).ceil
 
-      puts "Sending file (#{file.size} bytes)"
+      puts "Sending file (#{@filesize} bytes)"
 
       # Set up how much do we currently have (outside of the window)
       @delivered = 0
