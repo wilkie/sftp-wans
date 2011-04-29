@@ -39,6 +39,8 @@ module SFTP
         @socket = options[:socket]
       end
 
+      @number = 0
+
       set_options options
     end
 
@@ -90,9 +92,12 @@ module SFTP
       if @type == :receiving
         # Receive packets
         header = @socket.readline
-        header.match /^(\d+)\s+(.+)$/
+        header.match /^(\d+)\s+(.+)\s+(.+)$/
         sequence_number = $1.to_i
         check = $2
+        file_number = $3.to_i
+
+        return if file_number != @number
 
         # ACK anything if we have received the file
         if done?
@@ -100,9 +105,9 @@ module SFTP
 
           @stats[:acks_sent] += 1
           if (sequence_number+1) == (@options[:window_size] * 2)
-            @socket.puts "ACK 0"
+            @socket.puts "ACK 0 #{@number}"
           else
-            @socket.puts "ACK #{sequence_number+1}"
+            @socket.puts "ACK #{sequence_number+1} #{@number}"
           end
 
           return
@@ -139,14 +144,16 @@ module SFTP
           nacknowledge_frame sequence_number
         end
       else
-        return if done?
-
         # Respond to acknowledgments
         ack = @socket.readline
 
-        if ack.match /^ACK\s*(\d+)$/
+        if ack.match /^ACK\s+(\d+)\s+(\d+)$/
           # Respond to ACK
           sequence_number = $1.to_i
+          file_number = $2.to_i
+
+          return if file_number != @number
+
           receive_acknowledgement sequence_number
 
           max_frame = @options[:window_size] * ((@window % 2) + 1)
@@ -156,11 +163,16 @@ module SFTP
           if blah_frame == max_frame
             # window has been acknowledged
             send_next_window
-          elsif @delivered >= @filesize
+          elsif @next_frame == @total_frames
+            puts "MEH"
             stop_timeout
           end
-        elsif ack.match /^NAK\s*(\d+)$/
+        elsif ack.match /^NAK\s+(\d+)\s+(\d+)$/
           # Respond to NAK
+          file_number = $2.to_i
+
+          return if file_number != @number
+
           sequence_number = $1.to_i
           puts "Frame #{sequence_number} NAK"
           receive_nacknowledgement sequence_number
@@ -256,6 +268,8 @@ module SFTP
     def receive filename, filesize
       stop_timeout
 
+      @number += 1
+
       @type = :receiving
       
       # Open the file
@@ -267,6 +281,7 @@ module SFTP
         @file = File.new filename, "w+"
       end
       @filesize = filesize
+      @total_frames = (@filesize.to_f / @options[:frame_size].to_f).ceil
 
       puts "Receiving file (#{filesize} bytes)"
 
@@ -292,9 +307,12 @@ module SFTP
     def transfer file
       stop_timeout
 
+      @number += 1
+
       @type = :sending
       @file = file
       @filesize = file.size
+      @total_frames = (@filesize.to_f / @options[:frame_size].to_f).ceil
 
       puts "Sending file (#{file.size} bytes)"
 
@@ -366,12 +384,12 @@ module SFTP
       end
 
       if (sequence_number+1) == (@options[:window_size] * 2)
-        @socket.puts "ACK 0"
+        @socket.puts "ACK 0 #{@number}"
       else
-        @socket.puts "ACK #{sequence_number+1}"
+        @socket.puts "ACK #{sequence_number+1} #{@number}"
       end
 
-      if @delivered >= @filesize
+      if @next_frame == @total_frames
         puts "Delivered"
         done
 
@@ -494,7 +512,8 @@ module SFTP
         return
       end
 
-      @socket.puts "NAK #{sequence_number}"
+      puts "NAK #{sequence_number}"
+      @socket.puts "NAK #{sequence_number} #{@number}"
 
       # we received a response, so good
       reset_timeout
@@ -533,7 +552,7 @@ module SFTP
 
     # This will tell you if the transfer is complete.
     def done?
-      @delivered >= @filesize
+      @next_frame == @total_frames
     end
 
     # Receive a frame from the socket.
@@ -631,7 +650,7 @@ module SFTP
       end
 
       # send from buffer
-      @socket.puts "#{sequence_number} #{checksum sequence_number}"
+      @socket.puts "#{sequence_number} #{checksum sequence_number} #{@number}"
 
       to_send = String.new(@buffer[sequence_number])
       if rand(100) < @options[:error_rate] * 100
