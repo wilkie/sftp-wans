@@ -2,7 +2,7 @@
 
 require_relative 'name_server'
 
-port = 32000
+port = 8090
 name_server = SFTP::NameServer.new(port)
 
 puts "Running Name Server on port #{name_server.port}"

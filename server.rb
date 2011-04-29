@@ -1,10 +1,10 @@
 require 'socket'
 require_relative 'data_connection'
 require_relative 'name_server'
+require 'stringio'
 
 module SFTP
   class Server
-    require 'stringio'
 
     DEFAULT_PORT = 8080
 
@@ -96,12 +96,12 @@ module SFTP
                 puts "Client #{@index} command"
                 interpret_command socket.readline
               end
-            rescue
+			  #rescue
               # Just close the socket
-              puts "Client #{@index} closed"
-              @clients.delete_at @index
-              @directories.delete_at @index
-              socket.close
+			  #puts "Client #{@index} closed"
+			  #@clients.delete_at @index
+			  #@directories.delete_at @index
+			  #socket.close
             end
           elsif @data_sockets.include? socket
             # data connection
@@ -148,7 +148,7 @@ module SFTP
       # call the associated command_* method
       function = :"command_#{command_str}"
       if self.respond_to? function
-        puts "Command #{command_str} #{command_args}}"
+        puts "Command #{command_str} #{command_args}"
         self.send(:"command_#{command_str}", *command_args)
       else
         puts "Command #{command_str} not known"
@@ -247,7 +247,10 @@ module SFTP
       # Start sending file over data connection
       if File.exists? filename and not File.directory? filename
         f = File.new(filename)
-        @client.puts "OK #{f.size}"
+		f.seek 0, IO::SEEK_END
+		f_size = f.tell
+		f.seek 0, IO::SEEK_SET
+        @client.puts "OK #{f_size}"
         @data_connection.transfer f
       else
         @client.puts "FAILURE: File Not Found"
@@ -258,9 +261,9 @@ module SFTP
     # Will send a newline delimited list over data connection
     def command_rls
       s = StringIO.new ""
-      list = Dir.new(@directory).each do |entry|
+      list = Dir.new(@directory.path).each do |entry|
         unless entry == "."
-          s.puts entry
+          s.puts entry.to_s
         end
       end
 
